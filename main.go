@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os/exec"
+	"regexp"
 
 	"github.com/zabawaba99/firego"
 	"golang.org/x/oauth2"
@@ -11,6 +13,8 @@ import (
 )
 
 func main() {
+	bbcPath := "./cli/broadlink_cli"
+
 	d, err := ioutil.ReadFile("actions-smarthome-firebase-adminsdk.json")
 	if err != nil {
 		log.Fatal(err)
@@ -37,11 +41,18 @@ func main() {
 
 		// 	ss = append([]string{"SEND_ONCE"}, strings.Split(event.Data.(string), " ")...)
 		//
-		// 	err := exec.Command("irsend", ss...).Run()
-		// 	if err != nil {
-		// 		log.Fatal(err)
-		// 	}
+		// err := exec.Command(bbcPath, "--device @LIVINGROOM.device --send", "@"+event.Data.(string)).Run()
+		if check_regexp("ALL+", event.Data.(string)) {
+		} else {
+			err := exec.Command(bbcPath, "--device", "@./cli/LIVINGROOM.device", "--send", "@./cli/"+event.Data.(string)).Run()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}
 	}
-
 	fmt.Printf("Notifications have stopped")
+}
+
+func check_regexp(reg, str string) bool {
+	return regexp.MustCompile(reg).Match([]byte(str))
 }
