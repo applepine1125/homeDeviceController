@@ -40,13 +40,15 @@ func reconnectReference(fb *firego.Firebase, conf *jwt.Config) error {
 func executeCommand(fb *firego.Firebase, eventData string, room string) error {
 	d := strings.Split(eventData, " ")
 	if len(d) == 1 {
+		fmt.Println("execute command once")
 		if err := exec.Command("./cli/broadlink_cli", "--device", "@./cli/"+room+".device", "--send", "@./cli/"+d[0]).Run(); err != nil {
 			return err
 		}
 	} else {
 		rep, _ := strconv.Atoi(d[1])
-		for i := 0; i < rep; i++ {
-			if err := exec.Command("./cli/broadlink_cli", "--device", "@./cli/"+room+".device", "--send", "@./cli/"+eventData).Run(); err != nil {
+		fmt.Printf("execute command %d times\n", rep)
+		for i := 0; i < rep*2; i++ {
+			if err := exec.Command("./cli/broadlink_cli", "--device", "@./cli/"+room+".device", "--send", "@./cli/"+d[0]).Run(); err != nil {
 				return err
 			}
 
@@ -55,6 +57,7 @@ func executeCommand(fb *firego.Firebase, eventData string, room string) error {
 	if err := fb.Set("--"); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -63,32 +66,19 @@ func checkRegexp(reg, str string) bool {
 }
 
 func main() {
-
-	fb, conf, err := initialize()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	notifications := make(chan firego.Event)
-	if err := fb.Watch(notifications); err != nil {
-		fmt.Println("channel had something error")
-		log.Fatal(err)
-	}
-
-	// defer fb.StopWatching()
 	for {
+		fb, _, err := initialize()
+		if err != nil {
+			log.Fatal(err)
+		}
+		notifications := make(chan firego.Event)
+		if err := fb.Watch(notifications); err != nil {
+			fmt.Println("channel had something error")
+			log.Fatal(err)
+		}
+		fmt.Println(notifications)
 		for event := range notifications {
 			fmt.Printf("Type:%s Data:%s\n", event.Type, event.Data)
-
-			// check event error
-			if event.Type == firego.EventTypeAuthRevoked || event.Type == firego.EventTypeError {
-				if err := reconnectReference(fb, conf); err != nil {
-					fmt.Println("reconnect channel had something error")
-					log.Fatal(err)
-				}
-				fmt.Println("reconnect firebase socket")
-				continue
-			}
 
 			// check command
 			if checkRegexp("ALL+", event.Data.(string)) {
@@ -109,6 +99,8 @@ func main() {
 
 			}
 		}
+		fb.StopWatching()
+		fmt.Println("reconnect firebase socket")
 	}
 
 }
