@@ -71,14 +71,20 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
 		notifications := make(chan firego.Event)
 		if err := fb.Watch(notifications); err != nil {
 			fmt.Println("channel had something error")
 			log.Fatal(err)
 		}
-		fmt.Println(notifications)
+
 		for event := range notifications {
 			fmt.Printf("Type:%s Data:%s\n", event.Type, event.Data)
+
+			//check event error
+			if event.Type == firego.EventTypeError || event.Type == firego.EventTypeAuthRevoked {
+				break
+			}
 
 			// check command
 			if checkRegexp("ALL+", event.Data.(string)) {
@@ -102,5 +108,4 @@ func main() {
 		fb.StopWatching()
 		fmt.Println("reconnect firebase socket")
 	}
-
 }
