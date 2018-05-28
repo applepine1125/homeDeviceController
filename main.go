@@ -40,7 +40,6 @@ func reconnectReference(fb *firego.Firebase, conf *jwt.Config) error {
 func executeCommand(fb *firego.Firebase, eventData string, room string) error {
 	d := strings.Split(eventData, " ")
 	if len(d) == 1 {
-		fmt.Println("execute command once")
 		if err := exec.Command("./cli/broadlink_cli", "--device", "@./cli/"+room+".device", "--send", "@./cli/"+d[0]).Run(); err != nil {
 			return err
 		}
