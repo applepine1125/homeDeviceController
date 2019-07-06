@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os/exec"
@@ -15,20 +14,20 @@ import (
 	"golang.org/x/oauth2/jwt"
 )
 
-func initialize() (*firego.Firebase, *jwt.Config, error) {
+func initialize() (*firego.Firebase, error) {
 	d, err := ioutil.ReadFile("actions-smarthome-firebase-adminsdk.json")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	conf, err := google.JWTConfigFromJSON(d, "https://www.googleapis.com/auth/userinfo.email",
 		"https://www.googleapis.com/auth/firebase.database")
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	fb := firego.New("https://actions-smarthome.firebaseio.com/actions", conf.Client(oauth2.NoContext))
-	return fb, conf, nil
+	return fb, nil
 }
 
 func reconnectReference(fb *firego.Firebase, conf *jwt.Config) error {
@@ -40,14 +39,14 @@ func reconnectReference(fb *firego.Firebase, conf *jwt.Config) error {
 func executeCommand(fb *firego.Firebase, eventData string, room string) error {
 	d := strings.Split(eventData, " ")
 	if len(d) == 1 {
-		if err := exec.Command("./cli/broadlink_cli", "--device", "@./cli/"+room+".device", "--send", "@./cli/"+d[0]).Run(); err != nil {
+		if err := exec.Command("./cli/broadlink_cli", "--device", "@./config/"+room+".device", "--send", "@./config/"+d[0]).Run(); err != nil {
 			return err
 		}
 	} else {
 		rep, _ := strconv.Atoi(d[1])
-		fmt.Printf("execute command %d times\n", rep)
+		log.Printf("execute command %d times\n", rep)
 		for i := 0; i < rep*2; i++ {
-			if err := exec.Command("./cli/broadlink_cli", "--device", "@./cli/"+room+".device", "--send", "@./cli/"+d[0]).Run(); err != nil {
+			if err := exec.Command("./cli/broadlink_cli", "--device", "@./config/"+room+".device", "--send", "@./config/"+d[0]).Run(); err != nil {
 				return err
 			}
 
@@ -66,23 +65,28 @@ func checkRegexp(reg, str string) bool {
 
 func main() {
 	for {
-		fb, _, err := initialize()
+		fb, err := initialize()
 		if err != nil {
 			log.Fatal(err)
 		}
 
 		notifications := make(chan firego.Event)
 		if err := fb.Watch(notifications); err != nil {
-			fmt.Println("channel had something error")
+			log.Println("channel had something error")
+			log.Fatal(err)
+		}
+		// init state in firebase
+		if err := fb.Set("--"); err != nil {
 			log.Fatal(err)
 		}
 
 		for event := range notifications {
-			fmt.Printf("Type:%s Data:%s\n", event.Type, event.Data)
+			log.Printf("Type:%s Data:%s\n", event.Type, event.Data)
 
 			//check event error
 			if event.Type == firego.EventTypeError || event.Type == firego.EventTypeAuthRevoked {
-				break
+				log.Println("check event error")
+				log.Fatal(event.Type)
 			}
 
 			// check command
@@ -105,6 +109,6 @@ func main() {
 			}
 		}
 		fb.StopWatching()
-		fmt.Println("reconnect firebase socket")
+		log.Println("reconnect firebase socket")
 	}
 }
