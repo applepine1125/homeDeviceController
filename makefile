@@ -3,7 +3,7 @@ build: Dockerfile
 
 run:
 	docker stop home_device_controller || true && docker rm home_device_controller || true
-	docker run --restart=always --name home_device_controller home_device_controller
+	docker run -d --restart=always --name home_device_controller home_device_controller
 
 stop:
 	docker run home_device_controller
